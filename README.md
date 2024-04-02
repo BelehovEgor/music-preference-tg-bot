@@ -22,7 +22,7 @@ poetry install
 
 ### Docker ###
 
-Build image:
+Build the image:
 
 ```sh
 docker build \
@@ -51,7 +51,7 @@ python3 -m mp-bot
 
 ### Docker ###
 
-Run container:
+Run the container:
 
 ```sh
 docker run \

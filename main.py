@@ -48,6 +48,8 @@ def create_menu_page(user_id):
         except Exception as e:
             print(repr(e))
 
+    service.set_start_song_draft(user_id, False)
+
     # Создаем Inline клавиатуру для главного меню
     markup = types.InlineKeyboardMarkup(row_width=2)
     package = types.InlineKeyboardButton("Треки", callback_data=TRACKS)
@@ -69,7 +71,7 @@ if __name__ == '__main__':
 
     # Обработка команды /start или /menu
     @bot.message_handler(commands=[START, MENU])
-    def start(message) -> None:
+    def start(message):
         user_id = message.from_user.id
 
         # Отсылаем стартовое сообщение
@@ -97,7 +99,7 @@ if __name__ == '__main__':
                     xx = 0
 
                 elif call.data == ADD_TRACK:
-                    service.start_song_draft(user_id)
+                    service.set_start_song_draft(user_id, True)
 
                     # Удаляем Inline клавиатуру, если она осталась
                     message_id = service.get_bot_message_id(user_id)
@@ -121,7 +123,7 @@ if __name__ == '__main__':
             print(repr(e))
 
 
-    # TODO - Обработка сообщения после ввода текста пользователем
+    # Обработка сообщения после ввода текста пользователем
     @bot.message_handler(content_types=['text'])
     def message_from_bot(message):
         if message.chat.type == "private":

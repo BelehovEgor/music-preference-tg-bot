@@ -38,9 +38,9 @@ def is_user_starting_draft(user_id):
     return user_start_draft
 
 
-def start_song_draft(user_id):
+def set_start_song_draft(user_id, started):
     global user_start_draft
-    user_start_draft = True
+    user_start_draft = started
 
 
 def get_user_song_draft(user_id):

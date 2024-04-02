@@ -6,9 +6,12 @@ Dependencies
 
 - [pyenv][pyenv]
 - [Poetry][Poetry]
+- [Docker][Docker]
 
 Setup
 -----
+
+### Local ###
 
 ```sh
 pyenv local 3.11
@@ -17,8 +20,22 @@ poetry shell
 poetry install
 ```
 
+### Docker ###
+
+Build image:
+
+```sh
+docker build \
+    --build-arg TOKEN=${TOKEN} \
+    --tag mp-bot .
+```
+
+where `${TOKEN}` -- Telegram Bot API token.
+
 Run
 ---
+
+### Local ###
 
 Add Telegram Bot API token into the code:
 
@@ -34,16 +51,6 @@ python3 -m mp-bot
 
 ### Docker ###
 
-Build image:
-
-```sh
-docker build \
-    --build-arg TOKEN=${TOKEN} \
-    --tag mp-bot .
-```
-
-where `${TOKEN}` -- Telegram Bot API token.
-
 Run container:
 
 ```sh
@@ -56,3 +63,4 @@ docker run \
 
 [pyenv]:    https://github.com/pyenv/pyenv
 [Poetry]:   https://python-poetry.org/
+[Docker]:   https://www.docker.com/get-started/

@@ -32,5 +32,27 @@ Run the bot:
 python3 -m mp-bot
 ```
 
+### Docker ###
+
+Build image:
+
+```sh
+docker build \
+    --build-arg TOKEN=${TOKEN} \
+    --tag mp-bot .
+```
+
+where `${TOKEN}` -- Telegram Bot API token.
+
+Run container:
+
+```sh
+docker run \
+    --detach \
+    --rm \
+    --name mp-bot-container \
+    mp-bot
+```
+
 [pyenv]:    https://github.com/pyenv/pyenv
 [Poetry]:   https://python-poetry.org/

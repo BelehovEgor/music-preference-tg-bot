@@ -20,8 +20,15 @@ poetry install
 Run
 ---
 
+Add Telegram Bot API token into the code:
+
 ```sh
 echo 'TOKEN: str = "${TOKEN}"' > mp-bot/configuration.py
+```
+
+Run the bot:
+
+```sh
 python3 -m mp-bot
 ```
 

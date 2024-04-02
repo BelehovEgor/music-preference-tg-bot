@@ -17,5 +17,12 @@ poetry shell
 poetry install
 ```
 
+Run
+---
+
+```sh
+python3 -m mp-bot
+```
+
 [pyenv]:    https://github.com/pyenv/pyenv
 [Poetry]:   https://python-poetry.org/

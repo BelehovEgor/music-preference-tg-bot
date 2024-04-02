@@ -20,6 +20,9 @@ user_draft_song_link = None
 user_draft_song_name = None
 user_draft_song_performer = None
 
+user_page = 0
+user_page_type = None
+
 
 # Должны хранить
 def get_bot_message_id(user_id):
@@ -49,17 +52,17 @@ def get_user_song_draft(user_id):
 
 def set_draft_song_link(user_id, song_link):
     global user_draft_song_link
-    user_draft_song_link = True
+    user_draft_song_link = song_link
 
 
 def set_draft_song_name(user_id, song_name):
     global user_draft_song_name
-    user_draft_song_name = True
+    user_draft_song_name = song_name
 
 
 def set_draft_song_performer(user_id, song_performer):
     global user_draft_song_performer
-    user_draft_song_performer = True
+    user_draft_song_performer = song_performer
 
 
 def create_song(user_id):
@@ -74,3 +77,28 @@ def create_song(user_id):
     user_draft_song_link = None
     user_draft_song_name = None
     user_draft_song_performer = None
+
+
+def get_total_page_tracks(user_id):
+    total_page = 4
+    return total_page
+
+
+def get_songs(user_id, page, page_size):
+    songs_arr = []
+
+    for i in range(page_size - page):
+        songs_arr.append((i, "song_name_" + str(i)))
+
+    total_page = get_total_page_tracks(user_id)
+    return songs_arr, total_page
+
+
+def get_current_page(user_id):
+    return user_page, user_page_type
+
+
+def set_current_page(user_id, page, page_type):
+    global user_page, user_page_type
+    user_page = page
+    user_page_type = page_type

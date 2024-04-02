@@ -12,8 +12,83 @@ HELP = "help"
 ADD_TRACK = "add_track"
 GET_TRACKS_LIST = "get_tracks_list"
 
+GO_BACK = "back_page"
+GO_NEXT = "next_page"
 
-def create_tracks_menu(user_id, resend):
+TRACK = "track"
+PLAYLIST = "playlist"
+
+
+# Функция для добавления навигации
+def create_navigation(current_page, pages_count, keyboard, next_text, back_text):
+    # Добавим номер страницы и кнопки вперед/назад
+    # Если у нас всего 1 страница (может быть 0 аудио)
+    if pages_count == 0 or pages_count == 1:
+        back_button = types.InlineKeyboardButton("◀️", callback_data="inactive")
+        next_button = types.InlineKeyboardButton("▶️", callback_data="inactive")
+        number_package_page = types.InlineKeyboardButton(f"{1}/{1}",
+                                                         callback_data="number_page")
+
+    # Если страниц больше, чем 1
+    else:
+        back_button = types.InlineKeyboardButton("◀️", callback_data=f"{back_text}")
+        next_button = types.InlineKeyboardButton("▶️", callback_data=f"{next_text}")
+        number_package_page = types.InlineKeyboardButton(f"{current_page + 1}/{pages_count}",
+                                                         callback_data="number_page")
+
+    keyboard.row(back_button, number_package_page, next_button)
+
+
+def create_songs_page(user_id, current_page):
+    # Количество записей на одной странице
+    record_on_page = 8
+
+    songs, total_page_count = service.get_songs(user_id, current_page, record_on_page)
+
+    page_text = "👇Список треков👇"
+
+    keyboard = types.InlineKeyboardMarkup(row_width=1)
+    for song in songs:
+        song_id = song[0]
+        song_name = song[1]
+
+        # Присвоим имя кнопке для обработки ее нажатия
+        button_callback_data = TRACK + "_" + str(song_id)
+        button = types.InlineKeyboardButton(song_name, callback_data=button_callback_data)
+
+        keyboard.add(button)
+
+    # Добавим навигацию
+    create_navigation(current_page, total_page_count, keyboard, "next_page", "back_page")
+
+    # Создадим страницу со списком треков
+    message_id = service.get_bot_message_id(user_id)
+    bot.edit_message_text(chat_id=user_id, text=page_text, message_id=message_id, reply_markup=keyboard,
+                          parse_mode='html')
+
+
+# TODO
+def create_playlists_page(user_id, current_page):
+    xx = 0
+
+
+def process_add_track(user_id):
+    service.set_start_song_draft(user_id, True)
+
+    # Удаляем Inline клавиатуру, если она осталась
+    message_id = service.get_bot_message_id(user_id)
+    if message_id is not None:
+        # Если пользователь удалил переписку, то возможно ничего удалять и не надо
+        try:
+            bot.delete_message(chat_id=user_id, message_id=message_id)
+        except Exception as e:
+            print(repr(e))
+
+    text = "Введите ссылку"
+    bot.send_message(user_id, text, parse_mode='html')
+
+
+def process_tracks(user_id, resend):
     page_text = "Выберите кнопку"
     message_id = service.get_bot_message_id(user_id)
 
@@ -92,30 +167,56 @@ if __name__ == '__main__':
                 user_id = call.from_user.id
 
                 if call.data == TRACKS:
-                    create_tracks_menu(user_id, False)
+                    process_tracks(user_id, False)
 
+                # TODO
                 elif call.data == PLAYLISTS:
-                    # Обновим поле текущей страницы
                     xx = 0
 
                 elif call.data == ADD_TRACK:
-                    service.set_start_song_draft(user_id, True)
-
-                    # Удаляем Inline клавиатуру, если она осталась
-                    message_id = service.get_bot_message_id(user_id)
-                    if message_id is not None:
-                        # Если пользователь удалил переписку, то возможно ничего удалять и не надо
-                        try:
-                            bot.delete_message(chat_id=user_id, message_id=message_id)
-                        except Exception as e:
-                            print(repr(e))
-
-                    text = "Введите ссылку"
-                    bot.send_message(user_id, text, parse_mode='html')
+                    process_add_track(user_id)
 
                 elif call.data == GET_TRACKS_LIST:
+                    service.set_current_page(user_id, 0, TRACKS)
+                    create_songs_page(user_id, 0)
+
+                elif call.data == GO_BACK or call.data == GO_NEXT:
+                    previous_page, page_type = service.get_current_page(user_id)
+
+                    # Выберем направление перемещения(+1 -> следующая, -1 -> предыдущая)
+                    next_back_index = 1 if call.data == GO_NEXT else -1
+
+                    current_page = previous_page + next_back_index
+
+                    # Вычислим корректный номер текущей страницы
+                    total_page_count = service.get_total_page_tracks(user_id)
+                    if current_page < 0:
+                        current_page = total_page_count - 1
+                    elif current_page > total_page_count - 1:
+                        current_page = 0
+
+                    service.set_current_page(user_id, current_page, page_type)
+
+                    # Если мы сейчас листаем страницы Треков
+                    if page_type == TRACKS:
+                        # Вышлем следующую/предыдущую страницу
+                        create_songs_page(user_id, current_page)
+
+                    # Если мы сейчас листаем страницы Плейлистов
+                    elif page_type == PLAYLISTS:
+                        # Вышлем следующую/предыдущую страницу
+                        create_playlists_page(user_id, current_page)
+
+                # TODO
+                elif call.data.split("_")[0] == TRACK:
+                    track_id = int(call.data.split("_")[1])
                     xx = 0
 
+                # TODO
+                elif call.data.split("_")[0] == PLAYLIST:
+                    playlist_id = int(call.data.split("_")[1])
+
+                # TODO - чет еще
                 else:
                     xx = 0
 
@@ -144,7 +245,7 @@ if __name__ == '__main__':
                         service.set_draft_song_name(user_id, message.text)
                         service.create_song(user_id)
 
-                        create_tracks_menu(user_id, True)
+                        process_tracks(user_id, True)
 
             except Exception as e:
                 print(repr(e))

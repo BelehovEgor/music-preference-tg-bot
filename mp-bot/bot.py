@@ -1,10 +1,12 @@
 from telebot import types, TeleBot
+from .configuration import TOKEN
 
-bot = TeleBot("BOT-TOKEN")
+
+bot: TeleBot = TeleBot(TOKEN)
 
 
 @bot.message_handler(commands=["start"])
-def start(message):
+def start(message) -> None:
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn1 = types.KeyboardButton("👋 Поздороваться")
     markup.add(btn1)
@@ -14,7 +16,7 @@ def start(message):
 
 
 @bot.message_handler(content_types=["text"])
-def get_text_messages(message):
+def get_text_messages(message) -> None:
     if message.text == "👋 Поздороваться":
         markup = types.ReplyKeyboardMarkup(
             resize_keyboard=True
@@ -52,6 +54,3 @@ def get_text_messages(message):
             + "[ссылке](https://habr.com/ru/docs/companies/design/)",
             parse_mode="Markdown",
         )
-
-
-bot.polling(none_stop=True, interval=0)  # обязательная для работы бота часть

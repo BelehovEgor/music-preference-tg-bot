@@ -21,6 +21,7 @@ Run
 ---
 
 ```sh
+echo 'TOKEN: str = "${TOKEN}"' > mp-bot/configuration.py
 python3 -m mp-bot
 ```
 

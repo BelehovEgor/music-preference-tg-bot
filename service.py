@@ -23,6 +23,9 @@ user_draft_song_performer = None
 
 # Должны хранить
 def get_bot_message_id(user_id):
+    if user_id not in user_message_dict:
+        return None
+
     return user_message_dict[user_id]
 
 
@@ -42,7 +45,6 @@ def start_song_draft(user_id):
 
 def get_user_song_draft(user_id):
     return user_draft_song_link, user_draft_song_performer, user_draft_song_name
-
 
 
 def set_draft_song_link(user_id, song_link):

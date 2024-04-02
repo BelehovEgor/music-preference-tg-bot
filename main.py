@@ -39,6 +39,15 @@ def create_menu_page(user_id):
     # Текст главного меню
     menu_text = "\n\n👇 ГЛАВНОЕ МЕНЮ 👇"
 
+    # Удаляем Inline клавиатуру, если она осталась
+    message_id = service.get_bot_message_id(user_id)
+    if message_id is not None:
+        # Если пользователь удалил переписку, то возможно ничего удалять и не надо
+        try:
+            bot.delete_message(chat_id=user_id, message_id=message_id)
+        except Exception as e:
+            print(repr(e))
+
     # Создаем Inline клавиатуру для главного меню
     markup = types.InlineKeyboardMarkup(row_width=2)
     package = types.InlineKeyboardButton("Треки", callback_data=TRACKS)

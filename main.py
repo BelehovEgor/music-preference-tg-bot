@@ -1,8 +1,12 @@
+from typing import Type
+
+import sqlalchemy
 import telebot
 from telebot import types
 
 import config
-import service
+import services
+from models import Base, SongDraft
 
 START = "start"
 MENU = "menu"
@@ -40,10 +44,8 @@ def create_navigation(current_page, pages_count, keyboard, next_text, back_text)
 
 
 def create_songs_page(user_id, current_page):
-    # Количество записей на одной странице
-    record_on_page = 8
 
-    songs, total_page_count = service.get_songs(user_id, current_page, record_on_page)
+    songs, total_page_count = service.get_songs(user_id, current_page, config.PAGE_SIZE)
 
     page_text = "👇Список треков👇"
 
@@ -142,7 +144,9 @@ def create_menu_page(user_id):
 if __name__ == '__main__':
     # Подключение к API телеграм с помощью токена бота
     bot = telebot.TeleBot(config.TOKEN)
-
+    engine = sqlalchemy.create_engine(config.DB_CONN_STRING, echo=True)
+    Base.metadata.create_all(engine)
+    service = services.UserService(engine)
 
     # Обработка команды /start или /menu
     @bot.message_handler(commands=[START, MENU])
@@ -152,77 +156,76 @@ if __name__ == '__main__':
         # Отсылаем стартовое сообщение
         create_menu_page(user_id)
 
-
     # Обработка команды /help
     @bot.message_handler(commands=[HELP])
     def handle_start(message):
         user_id = message.from_user.id
 
-
     # Обработка нажатия на кнопки
     @bot.callback_query_handler(func=lambda call: True)
     def callback_handler(call):
         try:
-            if call.message:
-                user_id = call.from_user.id
+            if not call.message:
+                return
 
-                if call.data == TRACKS:
-                    process_tracks(user_id, False)
+            user_id = call.from_user.id
 
-                # TODO
-                elif call.data == PLAYLISTS:
-                    xx = 0
+            if call.data == TRACKS:
+                process_tracks(user_id, False)
 
-                elif call.data == ADD_TRACK:
-                    process_add_track(user_id)
+            # TODO
+            elif call.data == PLAYLISTS:
+                xx = 0
 
-                elif call.data == GET_TRACKS_LIST:
-                    service.set_current_page(user_id, 0, TRACKS)
-                    create_songs_page(user_id, 0)
+            elif call.data == ADD_TRACK:
+                process_add_track(user_id)
 
-                elif call.data == GO_BACK or call.data == GO_NEXT:
-                    previous_page, page_type = service.get_current_page(user_id)
+            elif call.data == GET_TRACKS_LIST:
+                service.set_current_page(user_id, 0, TRACKS)
+                create_songs_page(user_id, 0)
 
-                    # Выберем направление перемещения(+1 -> следующая, -1 -> предыдущая)
-                    next_back_index = 1 if call.data == GO_NEXT else -1
+            elif call.data == GO_BACK or call.data == GO_NEXT:
+                previous_page, page_type = service.get_current_page(user_id)
 
-                    current_page = previous_page + next_back_index
+                # Выберем направление перемещения(+1 -> следующая, -1 -> предыдущая)
+                next_back_index = 1 if call.data == GO_NEXT else -1
 
-                    # Вычислим корректный номер текущей страницы
-                    total_page_count = service.get_total_page_tracks(user_id)
-                    if current_page < 0:
-                        current_page = total_page_count - 1
-                    elif current_page > total_page_count - 1:
-                        current_page = 0
+                current_page = previous_page + next_back_index
 
-                    service.set_current_page(user_id, current_page, page_type)
+                # Вычислим корректный номер текущей страницы
+                total_page_count = service.get_total_page_tracks(user_id)
+                if current_page < 0:
+                    current_page = total_page_count - 1
+                elif current_page > total_page_count - 1:
+                    current_page = 0
 
-                    # Если мы сейчас листаем страницы Треков
-                    if page_type == TRACKS:
-                        # Вышлем следующую/предыдущую страницу
-                        create_songs_page(user_id, current_page)
+                service.set_current_page(user_id, current_page, page_type)
 
-                    # Если мы сейчас листаем страницы Плейлистов
-                    elif page_type == PLAYLISTS:
-                        # Вышлем следующую/предыдущую страницу
-                        create_playlists_page(user_id, current_page)
+                # Если мы сейчас листаем страницы Треков
+                if page_type == TRACKS:
+                    # Вышлем следующую/предыдущую страницу
+                    create_songs_page(user_id, current_page)
 
-                # TODO
-                elif call.data.split("_")[0] == TRACK:
-                    track_id = int(call.data.split("_")[1])
-                    xx = 0
+                # Если мы сейчас листаем страницы Плейлистов
+                elif page_type == PLAYLISTS:
+                    # Вышлем следующую/предыдущую страницу
+                    create_playlists_page(user_id, current_page)
 
-                # TODO
-                elif call.data.split("_")[0] == PLAYLIST:
-                    playlist_id = int(call.data.split("_")[1])
+            # TODO
+            elif call.data.split("_")[0] == TRACK:
+                track_id = int(call.data.split("_")[1])
+                xx = 0
 
-                # TODO - чет еще
-                else:
-                    xx = 0
+            # TODO
+            elif call.data.split("_")[0] == PLAYLIST:
+                playlist_id = int(call.data.split("_")[1])
+
+            # TODO - чет еще
+            else:
+                xx = 0
 
         except Exception as e:
             print(repr(e))
-
 
     # Обработка сообщения после ввода текста пользователем
     @bot.message_handler(content_types=['text'])
@@ -232,19 +235,18 @@ if __name__ == '__main__':
 
             try:
                 if service.is_user_starting_draft(user_id):
-                    song_link, song_performer, song_name = service.get_user_song_draft(user_id)
-                    if song_link is None:
+                    sd: Type[SongDraft] = service.get_user_song_draft(user_id)
+                    if sd.link is None:
                         service.set_draft_song_link(user_id, message.text)
                         text = "Введите автора"
                         bot.send_message(user_id, text, parse_mode='html')
-                    elif song_performer is None:
+                    elif sd.performer is None:
                         service.set_draft_song_performer(user_id, message.text)
                         text = "Введите имя трека"
                         bot.send_message(user_id, text, parse_mode='html')
-                    elif song_name is None:
+                    elif sd.name is None:
                         service.set_draft_song_name(user_id, message.text)
                         service.create_song(user_id)
-
                         process_tracks(user_id, True)
 
             except Exception as e:

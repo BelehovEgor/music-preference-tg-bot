@@ -108,7 +108,7 @@ class UserService:
             songs = session.scalars(select(Song).where(Song.user_id == user_id).limit(page_size).offset(page * page_size)).all()
 
         for i in songs:
-            songs_arr.append((i, "song_name_" + str(i)))
+            songs_arr.append((i, str(i)))
 
         total_page = self.get_total_page_tracks(user_id)
         return songs_arr, total_page

@@ -60,6 +60,9 @@ class Song(Base):
     performer: Mapped[str]
     name: Mapped[str]
 
+    def __repr__(self):
+        return f"{self.performer}: {self.name}"
+
 
 if __name__ == '__main__':
     engine = db.create_engine(config.DB_CONN_STRING, echo="True")

@@ -51,11 +51,12 @@ def create_songs_page(user_id, current_page):
 
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     for song in songs:
-        song_id = song[0]
-        song_name = song[1]
+        song_split = song.split(": ")
+        song_id = song_split[0]
+        song_name = song_split[1]
 
         # Присвоим имя кнопке для обработки ее нажатия
-        button_callback_data = TRACK + "_" + str(song_id)
+        button_callback_data = TRACK + "_" + song_id
         button = types.InlineKeyboardButton(song_name, callback_data=button_callback_data)
 
         keyboard.add(button)

@@ -61,7 +61,7 @@ class Song(Base):
     name: Mapped[str]
 
     def __repr__(self):
-        return f"{self.performer}: {self.name}"
+        return f"{self.song_id}: {self.name}"
 
 
 if __name__ == '__main__':

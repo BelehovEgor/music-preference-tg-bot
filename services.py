@@ -15,7 +15,7 @@ import uuid
 from typing import Type
 
 import sqlalchemy
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.orm import Session
 
 from models import *
@@ -112,6 +112,17 @@ class UserService:
 
         total_page = self.get_total_page_tracks(user_id)
         return songs_arr, total_page
+
+    def get_song(self, song_id):
+        with Session(self.engine) as session:
+            song = session.get_one(Song, {"song_id": uuid.UUID(song_id)})
+            return song.name, song.performer, song.link
+
+    def delete_song(self, song_id):
+        with Session(self.engine) as session:
+            statement = delete(Song).where(Song.song_id == uuid.UUID(song_id))
+            session.execute(statement)
+            session.commit()
 
     def get_current_page(self, user_id):
         with Session(self.engine) as session:

@@ -3,6 +3,7 @@ from typing import Type
 import sqlalchemy
 import telebot
 from telebot import types
+from re import match, search
 
 import config
 import services
@@ -40,12 +41,12 @@ END_CHANGE_PLAYLIST = "end_change_playlist"
 
 
 def send_song_info_message(user_id, track_id):
-    song_name, song_performer, song_link = service2.get_song(track_id)
-    track_info = f"👇• Название: {song_name}\n• Исполнитель: {song_performer}\n• Ссылка: {song_link}"
+    song_name, song_performer, song_link = service.get_song(track_id)
+    track_info = f"👇\n• Название: {song_name}\n• Исполнитель: {song_performer}\n• Ссылка: {song_link}"
 
     keyboard = types.InlineKeyboardMarkup()
     change_track = types.InlineKeyboardButton("Редактировать", callback_data=CHANGE_TRACK)
-    delete_track = types.InlineKeyboardButton("Удалить", callback_data=DELETE_TRACK)
+    delete_track = types.InlineKeyboardButton("Удалить", callback_data=f"DELETE_TRACK_{track_id}")
     keyboard.row(change_track, delete_track)
 
     # Создадим страницу с информацией по треку
@@ -57,7 +58,7 @@ def send_song_info_message(user_id, track_id):
 def add_track_to_playlist(user_id, track_id):
     playlist_id = service2.get_playlist_id(user_id)
     service2.save_song_to_playlist(track_id, playlist_id)
-    song_name, song_performer, song_link = service2.get_song(track_id)
+    song_name, song_performer, song_link = service.get_song(track_id)
     track_info = f"Трек успешно добавлен:\n• Название: {song_name}\n• Исполнитель: {song_performer}\n• Ссылка: {song_link}"
 
     # Создадим страницу с информацией по треку
@@ -367,8 +368,24 @@ if __name__ == '__main__':
             # TODO
             elif call.data == CHANGE_TRACK:
                 xx = 0
-            elif call.data == DELETE_TRACK:
-                xx = 0
+            
+            elif match(rf"^{DELETE_TRACK}_*$", call.data) is None:
+                # Находим song_id
+                find_song_id = search(r"DELETE_TRACK_(.*)", call.data)
+                assert find_song_id is not None
+                song_id = find_song_id.group(1)
+
+                print(song_id)
+                name, _, _ = service.get_song(song_id)
+                # Удаляем трек
+                service.delete_song(song_id)
+
+                # Пишем сообщение пользователю
+                text = f"✅ Трек {name} успешно удалён"
+                bot.send_message(chat_id=user_id, text=text, parse_mode='html')
+
+                # Перерисовываем страницу со списком треков
+                create_songs_page(user_id, 0)
             elif call.data == ADD_MEMBER:
                 xx = 0
             elif call.data == DELETE_PLAYLIST:

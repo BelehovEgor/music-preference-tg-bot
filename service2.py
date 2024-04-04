@@ -1,3 +1,5 @@
+from models import Song
+
 user_playlists = {}
 user_start_playlist_draft = False
 user_draft_playlist_name = None
@@ -59,11 +61,6 @@ def get_playlists(user_id, page, page_size):
 
     total_page = get_total_page_count(user_id, "playlists")
     return playlists_arr, total_page
-
-
-def get_song(track_id):
-    song_name, song_performer, song_link = "123", "456", "789"
-    return song_name, song_performer, song_link
 
 
 def get_playlist_songs(user_id, page, page_size):

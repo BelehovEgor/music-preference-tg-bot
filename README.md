@@ -1,6 +1,8 @@
 music-preference-tg-bot
 =======================
 
+> A bot for sharing tracks with your friends and playlists from different streaming services, like Apple Music, Spotify, etc.
+
 Dependencies
 ------------
 

@@ -7,9 +7,7 @@ from re import match, search
 
 import config
 import services
-from models import Base, SongDraft
-
-import service2
+from models import Base, SongDraft, PlaylistDraft
 
 START = "start"
 MENU = "menu"
@@ -56,8 +54,8 @@ def send_song_info_message(user_id, track_id):
 
 
 def add_track_to_playlist(user_id, track_id):
-    playlist_id = service2.get_playlist_id(user_id)
-    service2.save_song_to_playlist(track_id, playlist_id)
+    playlist_id = service.get_current_playlist(user_id)
+    service.set_song_to_playlist(track_id, playlist_id)
     song_name, song_performer, song_link = service.get_song(track_id)
     track_info = f"Трек успешно добавлен:\n• Название: {song_name}\n• Исполнитель: {song_performer}\n• Ссылка: {song_link}"
 
@@ -86,13 +84,13 @@ def create_navigation(current_page, pages_count, keyboard, next_text, back_text)
 
 
 def create_songs_page(user_id, current_page):
-    playlist_id = service2.get_playlist_id(user_id)
+    playlist_id = service.get_current_playlist(user_id)
 
-    if service2.is_user_change_playlist(user_id) or playlist_id is None:
+    if service.get_is_user_change_playlist(playlist_id) or playlist_id is None:
         songs, total_page_count = service.get_songs(user_id, current_page, config.PAGE_SIZE)
     else:
-        songs, total_page_count = service2.get_playlist_songs(user_id, current_page, config.PAGE_SIZE)
-
+        playlist_id = service.get_current_playlist(user_id)
+        songs, total_page_count = service.get_playlist_songs(playlist_id, current_page, config.PAGE_SIZE)
     page_text = "👇Список треков👇"
 
     keyboard = types.InlineKeyboardMarkup(row_width=1)
@@ -111,7 +109,7 @@ def create_songs_page(user_id, current_page):
     create_navigation(current_page, total_page_count, keyboard, "next_page", "back_page")
 
     # Если сейчас редактируем плейлист, то добавим кнопку завершения
-    if service2.is_user_change_playlist(user_id):
+    if service.get_is_user_change_playlist(playlist_id):
         end_change = types.InlineKeyboardButton("Завершить добавление", callback_data=END_CHANGE_PLAYLIST)
         keyboard.add(end_change)
 
@@ -125,14 +123,15 @@ def create_playlists_page(user_id, current_page):
     # Количество записей на одной странице
     record_on_page = 8
 
-    playlists, total_page_count = service2.get_playlists(user_id, current_page, record_on_page)
+    playlists, total_page_count = service.get_playlists(user_id, current_page, record_on_page)
 
     page_text = "👇Список плейлистов👇"
 
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     for playlist in playlists:
-        playlist_id = playlist[0]
-        playlist_name = playlist[1]
+        playlist_split = playlist.split(": ")
+        playlist_id = playlist_split[0]
+        playlist_name = playlist_split[1]
 
         # Присвоим имя кнопке для обработки ее нажатия
         button_callback_data = PLAYLIST + "_" + str(playlist_id)
@@ -150,12 +149,12 @@ def create_playlists_page(user_id, current_page):
 
 
 def create_playlist_page(user_id, playlist_id):
-    playlist_name = service2.get_playlist_name(playlist_id)
-    page_text = f"{playlist_name}"
+    playlist_name = service.get_playlist(playlist_id)
+    page_text = f"📁 <b>Плейлист:</b> {playlist_name}"
 
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     tracks_list = types.InlineKeyboardButton("Список треков", callback_data=GET_TRACKS_LIST)
-    add_track = types.InlineKeyboardButton("Добавить треки", callback_data=ADD_TRACK_TO_PLAYLIST)
+    add_track = types.InlineKeyboardButton("Добавить треки", callback_data=f"{ADD_TRACK_TO_PLAYLIST}_{playlist_id}")
     add_member = types.InlineKeyboardButton("Добавить участника", callback_data=ADD_MEMBER)
     delete_playlist = types.InlineKeyboardButton("Удалить", callback_data=DELETE_PLAYLIST)
     keyboard.add(tracks_list)
@@ -175,7 +174,7 @@ def process_add_track_playlist(user_id, is_track):
         service.set_start_song_draft(user_id, True)
     else:
         text = "Введите название плейлиста"
-        service2.set_start_playlist_draft(user_id, True)
+        service.set_start_playlist_draft(user_id, True)
 
     # Удаляем Inline клавиатуру, если она осталась
     message_id = service.get_bot_message_id(user_id)
@@ -186,7 +185,6 @@ def process_add_track_playlist(user_id, is_track):
         except Exception as e:
             print(repr(e))
 
-    text = "Введите ссылку"
     bot.send_message(user_id, text, parse_mode='html')
 
 
@@ -282,7 +280,7 @@ if __name__ == '__main__':
             user_id = call.from_user.id
 
             if call.data == TRACKS:
-                service2.set_playlist_id(user_id, None)
+                service.set_current_playlist(user_id, None)
                 process_tracks_playlists(user_id, False, True)
 
             elif call.data == PLAYLISTS:
@@ -316,7 +314,7 @@ if __name__ == '__main__':
                     elif current_page > total_page_count - 1:
                         current_page = 0
                 else:
-                    total_page_count = service2.get_total_page_count(user_id, page_type)
+                    total_page_count = service.get_total_page_playlists(user_id, page_type)
                     if current_page < 0:
                         current_page = total_page_count - 1
                     elif current_page > total_page_count - 1:
@@ -336,14 +334,16 @@ if __name__ == '__main__':
 
             elif call.data.split("_")[0] == TRACK:
                 track_id = call.data.split("_")[1]
-                if service2.is_user_change_playlist(user_id):
+                playlist_id = service.get_current_playlist(user_id)
+                print(f"\n\n{playlist_id}\n\n")
+                if service.get_is_user_change_playlist(playlist_id):
                     add_track_to_playlist(user_id, track_id)
                 else:
                     send_song_info_message(user_id, track_id)
 
             elif call.data.split("_")[0] == PLAYLIST:
                 playlist_id = call.data.split("_")[1]
-                service2.set_playlist_id(user_id, playlist_id)
+                service.set_current_playlist(user_id, playlist_id)
 
                 create_playlist_page(user_id, playlist_id)
 
@@ -352,17 +352,23 @@ if __name__ == '__main__':
 
             elif call.data == GET_PLAYLISTS_LIST:
                 service.set_current_page(user_id, 0, PLAYLISTS)
+                service.set_current_playlist(user_id, None)
                 create_playlists_page(user_id, 0)
 
-            elif call.data == ADD_TRACK_TO_PLAYLIST:
-                service2.set_user_change_playlist(user_id, True)
+            elif match(rf"^{ADD_TRACK_TO_PLAYLIST}_.*$", call.data):
+                # Находим playlist_id
+                find_playlist_id = search(rf"{ADD_TRACK_TO_PLAYLIST}_(.*)", call.data)
+                assert find_playlist_id is not None
+                playlist_id = find_playlist_id.group(1)
+
+                service.set_user_change_playlist(playlist_id, True)
 
                 service.set_current_page(user_id, 0, TRACKS)
                 create_songs_page(user_id, 0)
 
             elif call.data == END_CHANGE_PLAYLIST:
-                service2.set_user_change_playlist(user_id, False)
-                playlist_id = service2.get_playlist_id(user_id)
+                playlist_id = service.get_current_playlist(user_id)
+                service.set_user_change_playlist(playlist_id, False)
                 create_playlist_page(user_id, playlist_id)
 
             # TODO
@@ -422,11 +428,11 @@ if __name__ == '__main__':
                         service.create_song(user_id)
                         process_tracks_playlists(user_id, True, True)
 
-                elif service2.is_user_starting_playlist_draft(user_id):
-                    playlist_name = service2.get_user_playlist_draft(user_id)
-                    if playlist_name is None:
-                        service2.set_draft_playlist_name(user_id, message.text)
-                        service2.create_playlist(user_id)
+                elif service.is_user_starting_playlist_draft(user_id):
+                    playlist_name: Type[PlaylistDraft] = service.get_user_playlist_draft(user_id)
+                    if playlist_name.name is None:
+                        service.set_draft_playlist_name(user_id, message.text)
+                        service.create_playlist(user_id)
 
                         process_tracks_playlists(user_id, True, False)
 

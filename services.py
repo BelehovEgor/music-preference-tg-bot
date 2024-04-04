@@ -235,6 +235,22 @@ class UserService:
             session.execute(statement)
             session.commit()
 
+            # Удаляем из связующей таблицы, чтобы не говнякать
+            statement = delete(PlaylistSong).where(PlaylistSong.song_id == uuid.UUID(song_id))
+            session.execute(statement)
+            session.commit()
+
+    def delete_playlist(self, playlist_id):
+        with Session(self.engine) as session:
+            statement = delete(Playlist).where(Playlist.playlist_id == uuid.UUID(playlist_id))
+            session.execute(statement)
+            session.commit()
+
+            # Удаляем из связующей таблицы, чтобы не говнякать
+            statement = delete(PlaylistSong).where(PlaylistSong.playlist_id == uuid.UUID(playlist_id))
+            session.execute(statement)
+            session.commit()
+
     def get_current_page(self, user_id):
         with Session(self.engine) as session:
             ucp = session.get_one(UserCurrentPage, {"user_id": user_id})

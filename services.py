@@ -52,7 +52,7 @@ class UserService:
             session.merge(uem)  # upsert
             session.commit()
 
-    def is_user_starting_draft(self, user_id):
+    def is_user_starting_song_draft(self, user_id):
         with Session(self.engine) as session:
             sd = session.get(SongDraft, {"user_id": user_id})
             if sd is not None:

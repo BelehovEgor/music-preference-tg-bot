@@ -375,8 +375,8 @@ if __name__ == '__main__':
                 assert find_song_id is not None
                 song_id = find_song_id.group(1)
 
-                print(song_id)
                 name, _, _ = service.get_song(song_id)
+
                 # Удаляем трек
                 service.delete_song(song_id)
 

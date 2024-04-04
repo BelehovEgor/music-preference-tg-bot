@@ -156,7 +156,7 @@ def create_playlist_page(user_id, playlist_id):
     tracks_list = types.InlineKeyboardButton("Список треков", callback_data=GET_TRACKS_LIST)
     add_track = types.InlineKeyboardButton("Добавить треки", callback_data=f"{ADD_TRACK_TO_PLAYLIST}_{playlist_id}")
     add_member = types.InlineKeyboardButton("Добавить участника", callback_data=ADD_MEMBER)
-    delete_playlist = types.InlineKeyboardButton("Удалить", callback_data=DELETE_PLAYLIST)
+    delete_playlist = types.InlineKeyboardButton("Удалить", callback_data=f"{DELETE_PLAYLIST}_{playlist_id}")
     keyboard.add(tracks_list)
     keyboard.add(add_track)
     keyboard.add(add_member)
@@ -393,11 +393,27 @@ if __name__ == '__main__':
                 # Перерисовываем страницу со списком треков
                 create_songs_page(user_id, 0)
 
+            # TODO
             elif call.data == ADD_MEMBER:
                 pass
 
-            elif call.data == DELETE_PLAYLIST:
-                pass
+            elif match(rf"^{DELETE_PLAYLIST}_.*$", call.data):
+                # Находим playlist_id
+                find_playlist_id = search(rf"{DELETE_PLAYLIST}_(.*)", call.data)
+                assert find_playlist_id is not None
+                playlist_id = find_playlist_id.group(1)
+
+                name = service.get_playlist(playlist_id)
+
+                # Удаляем плейлист
+                service.delete_playlist(playlist_id)
+
+                # Пишем сообщение пользователю
+                text = f"✅ Плейлист {name} успешно удалён"
+                bot.send_message(chat_id=user_id, text=text, parse_mode='html')
+
+                # Перерисовываем страницу со списком плейлистов
+                create_playlists_page(user_id, 0)
 
             # TODO - чет еще
             else:

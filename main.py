@@ -1,3 +1,4 @@
+import uuid
 from typing import Type
 
 import sqlalchemy
@@ -334,7 +335,7 @@ if __name__ == '__main__':
                     send_song_info_message(user_id, track_id)
 
             elif call.data.split("_")[0] == PLAYLIST:
-                playlist_id = call.data.split("_")[1]
+                playlist_id = uuid.UUID(call.data.split("_")[1])
                 service.set_current_playlist(user_id, playlist_id)
 
                 create_playlist_page(user_id, playlist_id)
@@ -351,7 +352,7 @@ if __name__ == '__main__':
                 # Находим playlist_id
                 find_playlist_id = search(rf"{ADD_TRACK_TO_PLAYLIST}_(.*)", call.data)
                 assert find_playlist_id is not None
-                playlist_id = find_playlist_id.group(1)
+                playlist_id = uuid.UUID(find_playlist_id.group(1))
 
                 service.set_user_change_playlist(playlist_id, True)
 

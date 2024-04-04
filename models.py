@@ -81,10 +81,16 @@ class PlaylistDraft(Base):
     name: Mapped[Optional[str]] = mapped_column(default=None)
 
 
+class PlaylistUsers(Base):
+    __tablename__ = "playlist_users"
+    user_id: Mapped[str] = mapped_column(primary_key=True)
+    playlist_id: Mapped[UUID] = Column(UUID(as_uuid=True), ForeignKey("playlists.playlist_id"), primary_key=True)
+    role: Mapped[str] = mapped_column(default="admin")  # may be reader
+
+
 class Playlist(Base):
     __tablename__ = "playlists"
-    playlist_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
-    user_id: Mapped[str]
+    playlist_id: Mapped[uuid.UUID] = Column(UUID(as_uuid=True), primary_key=True)
     name: Mapped[str]
     is_user_change: Mapped[bool] = mapped_column(default=False)
     is_current: Mapped[bool] = mapped_column(default=False)

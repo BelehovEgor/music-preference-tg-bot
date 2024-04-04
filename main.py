@@ -13,7 +13,6 @@ START = "start"
 MENU = "menu"
 TRACKS = "tracks"
 PLAYLISTS = "playlists"
-HELP = "help"
 ADD_TRACK = "add_track"
 GET_TRACKS_LIST = "get_tracks_list"
 
@@ -240,10 +239,8 @@ def create_menu_page(user_id):
     markup = types.InlineKeyboardMarkup(row_width=2)
     package = types.InlineKeyboardButton("Треки", callback_data=TRACKS)
     catalog = types.InlineKeyboardButton("Плейлисты", callback_data=PLAYLISTS)
-    help_item = types.InlineKeyboardButton("Помощь", callback_data=HELP)
     markup.add(package)
     markup.add(catalog)
-    markup.add(help_item)
 
     # Добавляем Inline клавиатуру в главном меню
     message = bot.send_message(user_id, menu_text, parse_mode='html', reply_markup=markup)
@@ -264,11 +261,6 @@ if __name__ == '__main__':
 
         # Отсылаем стартовое сообщение
         create_menu_page(user_id)
-
-    # Обработка команды /help
-    @bot.message_handler(commands=[HELP])
-    def handle_start(message):
-        user_id = message.from_user.id
 
     # Обработка нажатия на кнопки
     @bot.callback_query_handler(func=lambda call: True)

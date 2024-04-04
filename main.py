@@ -46,7 +46,7 @@ def send_song_info_message(user_id, track_id):
 
     keyboard = types.InlineKeyboardMarkup()
     change_track = types.InlineKeyboardButton("Редактировать", callback_data=CHANGE_TRACK)
-    delete_track = types.InlineKeyboardButton("Удалить", callback_data=f"DELETE_TRACK_{track_id}")
+    delete_track = types.InlineKeyboardButton("Удалить", callback_data=f"{DELETE_TRACK}_{track_id}")
     keyboard.row(change_track, delete_track)
 
     # Создадим страницу с информацией по треку
@@ -369,9 +369,9 @@ if __name__ == '__main__':
             elif call.data == CHANGE_TRACK:
                 xx = 0
             
-            elif match(rf"^{DELETE_TRACK}_*$", call.data) is None:
+            elif match(rf"^{DELETE_TRACK}_.*$", call.data):
                 # Находим song_id
-                find_song_id = search(r"DELETE_TRACK_(.*)", call.data)
+                find_song_id = search(rf"{DELETE_TRACK}_(.*)", call.data)
                 assert find_song_id is not None
                 song_id = find_song_id.group(1)
 

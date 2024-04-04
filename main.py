@@ -40,7 +40,7 @@ END_CHANGE_PLAYLIST = "end_change_playlist"
 
 def send_song_info_message(user_id, track_id):
     song_name, song_performer, song_link = service.get_song(track_id)
-    track_info = f"👇\n• Название: {song_name}\n• Исполнитель: {song_performer}\n• Ссылка: {song_link}"
+    track_info = f"🎵 <b>Трек</b>:\n• Название: {song_name}\n• Исполнитель: {song_performer}\n• Ссылка: {song_link}"
 
     keyboard = types.InlineKeyboardMarkup()
     change_track = types.InlineKeyboardButton("Редактировать", callback_data=CHANGE_TRACK)
@@ -57,7 +57,7 @@ def add_track_to_playlist(user_id, track_id):
     playlist_id = service.get_current_playlist(user_id)
     service.set_song_to_playlist(track_id, playlist_id)
     song_name, song_performer, song_link = service.get_song(track_id)
-    track_info = f"Трек успешно добавлен:\n• Название: {song_name}\n• Исполнитель: {song_performer}\n• Ссылка: {song_link}"
+    track_info = f"✅ Трек успешно добавлен:\n• Название: {song_name}\n• Исполнитель: {song_performer}\n• Ссылка: {song_link}"
 
     # Создадим страницу с информацией по треку
     bot.send_message(chat_id=user_id, text=track_info, parse_mode='html')
@@ -91,7 +91,7 @@ def create_songs_page(user_id, current_page):
     else:
         playlist_id = service.get_current_playlist(user_id)
         songs, total_page_count = service.get_playlist_songs(playlist_id, current_page, config.PAGE_SIZE)
-    page_text = "👇Список треков👇"
+    page_text = "📋 <b>Список треков</b>"
 
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     for song in songs:
@@ -125,7 +125,7 @@ def create_playlists_page(user_id, current_page):
 
     playlists, total_page_count = service.get_playlists(user_id, current_page, record_on_page)
 
-    page_text = "👇Список плейлистов👇"
+    page_text = "📋 <b>Список плейлистов</b>"
 
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     for playlist in playlists:
@@ -170,10 +170,10 @@ def create_playlist_page(user_id, playlist_id):
 
 def process_add_track_playlist(user_id, is_track):
     if is_track:
-        text = "Введите ссылку"
+        text = "✍️ Введите ссылку"
         service.set_start_song_draft(user_id, True)
     else:
-        text = "Введите название плейлиста"
+        text = "✍️ Введите название плейлиста"
         service.set_start_playlist_draft(user_id, True)
 
     # Удаляем Inline клавиатуру, если она осталась
@@ -189,7 +189,7 @@ def process_add_track_playlist(user_id, is_track):
 
 
 def process_tracks_playlists(user_id, resend, is_tracks):
-    page_text = "Выберите кнопку"
+    page_text = "💥 Выберите кнопку"
     message_id = service.get_bot_message_id(user_id)
 
     if is_tracks:
@@ -223,7 +223,7 @@ def process_tracks_playlists(user_id, resend, is_tracks):
 # Функция для создания страницы с главным меню
 def create_menu_page(user_id):
     # Текст главного меню
-    menu_text = "\n\n👇 ГЛАВНОЕ МЕНЮ 👇"
+    menu_text = "\n\n👇 <b><u>ГЛАВНОЕ МЕНЮ</u></b> 👇"
 
     # Удаляем Inline клавиатуру, если она осталась
     message_id = service.get_bot_message_id(user_id)
@@ -433,11 +433,11 @@ if __name__ == '__main__':
                     sd: Type[SongDraft] = service.get_user_song_draft(user_id)
                     if sd.link is None:
                         service.set_draft_song_link(user_id, message.text)
-                        text = "Введите автора"
+                        text = "✍️ Введите автора"
                         bot.send_message(user_id, text, parse_mode='html')
                     elif sd.performer is None:
                         service.set_draft_song_performer(user_id, message.text)
-                        text = "Введите имя трека"
+                        text = "✍️ Введите имя трека"
                         bot.send_message(user_id, text, parse_mode='html')
                     elif sd.name is None:
                         service.set_draft_song_name(user_id, message.text)

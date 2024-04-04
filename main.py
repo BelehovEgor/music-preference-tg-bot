@@ -367,8 +367,8 @@ if __name__ == '__main__':
 
             # TODO
             elif call.data == CHANGE_TRACK:
-                xx = 0
-            
+                pass
+
             elif match(rf"^{DELETE_TRACK}_.*$", call.data):
                 # Находим song_id
                 find_song_id = search(rf"{DELETE_TRACK}_(.*)", call.data)
@@ -386,14 +386,16 @@ if __name__ == '__main__':
 
                 # Перерисовываем страницу со списком треков
                 create_songs_page(user_id, 0)
+
             elif call.data == ADD_MEMBER:
-                xx = 0
+                pass
+
             elif call.data == DELETE_PLAYLIST:
-                xx = 0
+                pass
 
             # TODO - чет еще
             else:
-                xx = 0
+                pass
 
         except Exception as e:
             print(repr(e))

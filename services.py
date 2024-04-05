@@ -15,7 +15,7 @@ import uuid
 from typing import Type
 
 import sqlalchemy
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, and_
 from sqlalchemy.orm import Session
 
 from models import *
@@ -46,9 +46,37 @@ class UserService:
             else:
                 return None
 
-    def set_bot_message_id(self, user_id, message_id):
+    def get_user_link(self, user_id):
         with Session(self.engine) as session:
-            uem = UserEditingMessage(user_id=user_id, message_id=message_id)
+            uem = session.get(UserEditingMessage, {"user_id": user_id})
+            if uem is not None:
+                return uem.user_link
+            else:
+                return None
+
+    def get_user_playlist_role(self, user_id, playlist_id):
+        with Session(self.engine) as session:
+            query = session.query(PlaylistUsers).filter(
+                PlaylistUsers.user_id == user_id,
+                PlaylistUsers.playlist_id == playlist_id
+            )
+            return query.one().role
+
+    def get_another_user_link(self, user_id):
+        with Session(self.engine) as session:
+            uem = session.get(PlaylistInvitationDraft, {"user_id": user_id})
+            if uem is not None:
+                return uem.another_user_link
+            else:
+                return None
+
+    def set_bot_message_id(self, user_id, message_id, user_link):
+        with Session(self.engine) as session:
+            if user_link is None:
+                current_user_link = self.get_user_link(user_id)
+                uem = UserEditingMessage(user_id=user_id, message_id=message_id, user_link=current_user_link)
+            else:
+                uem = UserEditingMessage(user_id=user_id, message_id=message_id, user_link=user_link)
             session.merge(uem)  # upsert
             session.commit()
 
@@ -68,6 +96,39 @@ class UserService:
             else:
                 return False
 
+    def is_user_start_inviting(self, user_id):
+        with Session(self.engine) as session:
+            sd = session.get(PlaylistInvitationDraft, {"user_id": user_id})
+            if sd is not None:
+                return sd.is_started
+            else:
+                return False
+            
+    def set_user_start_inviting(self, user_id, started):
+        with Session(self.engine) as session:
+            draft = PlaylistInvitationDraft(user_id=user_id, is_started=started, another_user_link=None, role=None)
+            session.merge(draft)
+            session.commit()
+
+    def get_invitation_role(self, user_id, another_user_link):
+        with Session(self.engine) as session:
+            query = session.query(PlaylistInvitation).filter(
+                PlaylistInvitation.user_id == user_id,
+                PlaylistInvitation.another_user_link == another_user_link
+            )
+            return query.one().role
+
+    def delete_invitation(self, user_id, another_user_link):
+        with Session(self.engine) as session:
+            statement = delete(PlaylistInvitation).where(and_(PlaylistInvitation.user_id == user_id, PlaylistInvitation.another_user_link == another_user_link))
+            session.execute(statement)
+            session.commit()
+
+            # Удаляем из связующей таблицы, чтобы не говнякать
+            statement = delete(PlaylistSong).where(PlaylistSong.song_id == uuid.UUID(song_id))
+            session.execute(statement)
+            session.commit()
+
     def set_start_song_draft(self, user_id, started):
         with Session(self.engine) as session:
             draft = SongDraft(user_id=user_id, is_started=started, link=None, performer=None, name=None)
@@ -83,6 +144,10 @@ class UserService:
             draft = PlaylistDraft(user_id=user_id, is_started=started, name=None)
             session.merge(draft)
             session.commit()
+
+    def get_user_invitation_draft(self, user_id) -> Type[PlaylistInvitationDraft]:
+        with Session(self.engine) as session:
+            return session.get_one(PlaylistInvitationDraft, {"user_id": user_id})
 
     def get_user_playlist_draft(self, user_id) -> Type[PlaylistDraft]:
         with Session(self.engine) as session:
@@ -112,6 +177,25 @@ class UserService:
             sd.name = playlist_name
             session.commit()
 
+    def set_another_user_link_draft_invitation(self, user_id, another_user_link):
+        with Session(self.engine) as session:
+            sd = session.get_one(PlaylistInvitationDraft, {"user_id": user_id})
+            sd.another_user_link = another_user_link
+            session.commit()
+    
+    def set_role_draft_invitation(self, user_id, role):
+        with Session(self.engine) as session:
+            sd = session.get_one(PlaylistInvitationDraft, {"user_id": user_id})
+            sd.role = role
+            session.commit()
+
+    def set_draft_invitation(self, user_id, another_user_link, role):
+        with Session(self.engine) as session:
+            sd = session.get_one(PlaylistInvitationDraft, {"user_id": user_id})
+            sd.role = role
+            sd.another_user_link = another_user_link
+            session.commit()
+
     def create_song(self, user_id):
         sd: Type[SongDraft] = self.get_user_song_draft(user_id)
         song = Song(user_id=user_id, song_id=uuid.uuid4(), name=sd.name, link=sd.link, performer=sd.performer)
@@ -130,6 +214,26 @@ class UserService:
             session.add(playlist_user)
             session.commit()
         self.set_start_playlist_draft(user_id, started=False)
+
+    def get_user_id_by_user_link(self, user_link):
+        with Session(self.engine) as session:
+            query = session.query(UserEditingMessage).filter(
+                UserEditingMessage.user_link == user_link,
+            )
+            return query.one().user_id
+
+    def create_invitation(self, user_id):
+        playlist_id = self.get_current_playlist(user_id)
+        pid: Type[PlaylistInvitationDraft] = self.get_user_invitation_draft(user_id)
+        playlist_invitation = PlaylistInvitation(playlist_invitation_id=uuid.uuid4(), user_id=user_id, another_user_link=pid.another_user_link, role=pid.role)
+        another_user_id = self.get_user_id_by_user_link(playlist_invitation.another_user_link)
+        if another_user_id is not None:
+            playlist_user = PlaylistUsers(user_id=another_user_id, playlist_id=playlist_id, role=pid.role)
+            with Session(self.engine) as session:
+                session.add(playlist_invitation)
+                session.add(playlist_user)
+                session.commit()
+            self.set_user_start_inviting(user_id, started=False)
 
     def get_total_page_tracks(self, user_id):
         with Session(self.engine) as session:

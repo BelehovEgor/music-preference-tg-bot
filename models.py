@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 
 import sqlalchemy as db
-from sqlalchemy import Column, ForeignKey, Integer
+from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -34,12 +34,15 @@ class UserEditingMessage(Base):
     __tablename__ = "user_editing_message"
     user_id: Mapped[str] = mapped_column(primary_key=True)
     message_id: Mapped[str]
+    user_link: Mapped[str]
 
     def __repr__(self) -> str:
         return (
             f"UserEditingMessage: user_id={self.user_id}, message_id={self.message_id}"
         )
-
+    
+    playlist_invitation = relationship("PlaylistInvitation", back_populates="user")
+    playlist_invitation_draft = relationship("PlaylistInvitationDraft", back_populates="user")
 
 class UserCurrentPage(Base):
     __tablename__ = "user_current_page"
@@ -109,6 +112,25 @@ class PlaylistSong(Base):
 
     playlist = relationship("Playlist", back_populates="songs")
     song = relationship("Song", back_populates="playlists")
+
+
+class PlaylistInvitationDraft(Base):
+    __tablename__ = "playlist_invitation_draft"
+    user_id = Column(String, ForeignKey("user_editing_message.user_id"), primary_key=True)
+    role: Mapped[Optional[str]] = mapped_column(default=None)
+    another_user_link: Mapped[Optional[str]] = mapped_column(default=None)
+    is_started: Mapped[bool] = mapped_column(default=False)
+
+    user = relationship("UserEditingMessage", back_populates="playlist_invitation_draft")
+
+class PlaylistInvitation(Base):
+    __tablename__ = "playlist_invitation"
+    playlist_invitation_id = Column(UUID(as_uuid=True), primary_key=True)
+    user_id = Column(String, ForeignKey("user_editing_message.user_id"))
+    role: Mapped[str] = mapped_column(default=None)
+    another_user_link: Mapped[str] = mapped_column(default=None)
+
+    user = relationship("UserEditingMessage", back_populates="playlist_invitation")
 
 
 if __name__ == "__main__":

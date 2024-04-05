@@ -33,6 +33,8 @@ GO_BACK = "go_back"
 
 ADD_TRACK_TO_PLAYLIST = "add_track_to_playlist"
 ADD_MEMBER = "add_member"
+ADD_MEMBER_ADMIN = "add_member_admin"
+ADD_MEMBER_READER = "add_member_reader"
 DELETE_PLAYLIST = "delete_playlist"
 
 END_CHANGE_PLAYLIST = "end_change_playlist"
@@ -152,15 +154,20 @@ def create_playlist_page(user_id, playlist_id):
     playlist_name = service.get_playlist(playlist_id)
     page_text = f"📁 <b>Плейлист:</b> {playlist_name}"
 
+    user_role = service.get_user_playlist_role(user_id, playlist_id)
+
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     tracks_list = types.InlineKeyboardButton("Список треков", callback_data=GET_TRACKS_LIST)
     add_track = types.InlineKeyboardButton("Добавить треки", callback_data=f"{ADD_TRACK_TO_PLAYLIST}_{playlist_id}")
     add_member = types.InlineKeyboardButton("Добавить участника", callback_data=ADD_MEMBER)
     delete_playlist = types.InlineKeyboardButton("Удалить", callback_data=f"{DELETE_PLAYLIST}_{playlist_id}")
+
     keyboard.add(tracks_list)
-    keyboard.add(add_track)
-    keyboard.add(add_member)
-    keyboard.add(delete_playlist)
+
+    if user_role == "admin":
+        keyboard.add(add_track)
+        keyboard.add(add_member)
+        keyboard.add(delete_playlist)
 
     # Создадим страницу со списком треков
     message_id = service.get_bot_message_id(user_id)
@@ -212,7 +219,7 @@ def process_tracks_playlists(user_id, resend, is_tracks):
 
     if resend:
         message = bot.send_message(chat_id=user_id, text=page_text, reply_markup=keyboard, parse_mode='html')
-        service.set_bot_message_id(user_id, message.id)
+        service.set_bot_message_id(user_id, message.id, None)
     else:
         # Бот изменяет сообщение на новую страницу
         bot.edit_message_text(chat_id=user_id, text=page_text,
@@ -220,8 +227,35 @@ def process_tracks_playlists(user_id, resend, is_tracks):
                               reply_markup=keyboard, parse_mode='html')
 
 
+def process_add_user_to_playlist(user_id):
+    text = "✍️ Введите имя пользователя в следующем формате:\n<code>username</code>"
+
+    # Удаляем Inline клавиатуру, если она осталась
+    message_id = service.get_bot_message_id(user_id)
+    if message_id is not None:
+        # Если пользователь удалил переписку, то возможно ничего удалять и не надо
+        try:
+            bot.delete_message(chat_id=user_id, message_id=message_id)
+        except Exception as e:
+            print(repr(e))
+
+    bot.send_message(chat_id=user_id, text=text, parse_mode='html')
+
+# Функция для создания страницы приглашения
+def create_inviting_page(user_id):
+    text = "🗿 Выберите роль участника:"
+
+    keyboard = types.InlineKeyboardMarkup()
+    admin = types.InlineKeyboardButton("Администратор", callback_data=ADD_MEMBER_ADMIN)
+    reader = types.InlineKeyboardButton("Читатель", callback_data=ADD_MEMBER_READER)
+    keyboard.row(admin, reader)
+
+    message_id = service.get_bot_message_id(user_id)
+    bot.edit_message_text(chat_id=user_id, text=text, message_id=message_id, reply_markup=keyboard, parse_mode='html')
+
+
 # Функция для создания страницы с главным меню
-def create_menu_page(user_id):
+def create_menu_page(user_id, user_link):
     # Текст главного меню
     menu_text = "\n\n👇 <b><u>ГЛАВНОЕ МЕНЮ</u></b> 👇"
 
@@ -245,7 +279,7 @@ def create_menu_page(user_id):
 
     # Добавляем Inline клавиатуру в главном меню
     message = bot.send_message(user_id, menu_text, parse_mode='html', reply_markup=markup)
-    service.set_bot_message_id(user_id, message.id)
+    service.set_bot_message_id(user_id, message.id, user_link)
 
 
 if __name__ == '__main__':
@@ -259,9 +293,10 @@ if __name__ == '__main__':
     @bot.message_handler(commands=[START, MENU])
     def start(message):
         user_id = message.from_user.id
+        user_link = message.from_user.username
 
         # Отсылаем стартовое сообщение
-        create_menu_page(user_id)
+        create_menu_page(user_id, user_link)
 
     # Обработка нажатия на кнопки
     @bot.callback_query_handler(func=lambda call: True)
@@ -388,7 +423,17 @@ if __name__ == '__main__':
 
             # TODO
             elif call.data == ADD_MEMBER:
-                pass
+                create_inviting_page(user_id) # Перерисовываем кнопки <Админ/Читатель>
+            
+            elif call.data == ADD_MEMBER_ADMIN:
+                service.set_user_start_inviting(user_id, True)
+                service.set_role_draft_invitation(user_id, "admin")
+                process_add_user_to_playlist(user_id)
+
+            elif call.data == ADD_MEMBER_READER:
+                service.set_user_start_inviting(user_id, True)
+                service.set_role_draft_invitation(user_id, "reader")
+                process_add_user_to_playlist(user_id)
 
             elif match(rf"^{DELETE_PLAYLIST}_.*$", call.data):
                 # Находим playlist_id
@@ -396,7 +441,7 @@ if __name__ == '__main__':
                 assert find_playlist_id is not None
                 playlist_id = find_playlist_id.group(1)
 
-                name = service.get_playlist(playlist_id)
+                name = service.get_playlist(uuid.UUID(playlist_id))
 
                 # Удаляем плейлист
                 service.delete_playlist(playlist_id)
@@ -444,6 +489,30 @@ if __name__ == '__main__':
                         service.create_playlist(user_id)
 
                         process_tracks_playlists(user_id, True, False)
+                
+                elif service.is_user_start_inviting(user_id):
+                    another_user_link = service.get_another_user_link(user_id)
+                    if another_user_link is None:
+                        service.set_another_user_link_draft_invitation(user_id, message.text)
+                        service.create_invitation(user_id)
+
+                        playlist_id = service.get_current_playlist(user_id)
+                        playlist_name = service.get_playlist(playlist_id)
+                        user_link = service.get_user_link(user_id)
+                        another_user_id = service.get_user_id_by_user_link(message.text)
+                        role = service.get_invitation_role(user_id, message.text)
+
+                        role = "Администратора" if role == "admin" else "Читателя"
+
+                        text = f'✅ Пользователь @{user_link} добавил вас в плейлист "{playlist_name}" в роли {role}'
+                        bot.send_message(chat_id=another_user_id, text=text, parse_mode="html")
+                        
+                        text = f'✅ Пользователь @{message.text} был добавлен в плейлист "{playlist_name}" в роли {role}'
+                        bot.send_message(chat_id=user_id, text=text, parse_mode="html")
+
+                        service.delete_invitation(user_id, another_user_link)
+
+                        create_playlist_page(user_id, playlist_id)
 
             except Exception as e:
                 print(repr(e))
